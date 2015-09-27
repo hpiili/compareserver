@@ -1,11 +1,12 @@
 FROM perl:5.20
 
 RUN curl -L http://cpanmin.us | perl - App::cpanminus
+RUN cache=1p5JxG3 git clone https://github.com/hpiili/compareserver.git
+
 RUN cpanm Carton Plack Starman
 
-RUN cache=1p5JxG2 git clone https://github.com/hpiili/compareserver.git
-RUN cd compareserver 
-WORKDIR /compareserver
+RUN cd /root/compareserver 
+WORKDIR /root/compareserver
 
 CMD carton install --deployment
 

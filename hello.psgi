@@ -1,5 +1,8 @@
+use Data::Dumper;
+
 my $app = sub {
 	my $env = shift;
+	print Dumper($env);
     if ($env->{PATH_INFO} eq '/favicon.ico') {
         open my $fh, "<:raw", "/path/to/favicon.ico" or die $!;
         return [ 200, ['Content-Type' => 'image/x-icon'], $fh ];
