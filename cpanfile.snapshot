@@ -20,6 +20,45 @@ DISTRIBUTIONS
       POSIX::strftime::Compiler 0.30
       Time::Local 0
       perl 5.008001
+  CGI-4.21
+    pathname: L/LE/LEEJO/CGI-4.21.tar.gz
+    provides:
+      CGI 4.21
+      CGI::Carp 4.21
+      CGI::Cookie 4.21
+      CGI::File::Temp 4.21
+      CGI::HTML::Functions undef
+      CGI::Pretty 4.21
+      CGI::Push 4.21
+      CGI::Util 4.21
+      Fh 4.21
+      MultipartBuffer 4.21
+    requirements:
+      Carp 0
+      Config 0
+      Encode 0
+      Exporter 0
+      ExtUtils::MakeMaker 0
+      File::Spec 0.82
+      File::Temp 0
+      HTML::Entities 3.69
+      base 0
+      if 0
+      overload 0
+      parent 0.225
+      perl 5.008001
+      strict 0
+      utf8 0
+      warnings 0
+  CGI-PSGI-0.15
+    pathname: M/MI/MIYAGAWA/CGI-PSGI-0.15.tar.gz
+    provides:
+      CGI::PSGI 0.15
+    requirements:
+      CGI 3.33
+      ExtUtils::MakeMaker 6.42
+      Test::More 0.88
+      perl 5.008001
   CPAN-Meta-2.150005
     pathname: D/DA/DAGOLDEN/CPAN-Meta-2.150005.tar.gz
     provides:
@@ -326,6 +365,27 @@ DISTRIBUTIONS
       Filesys::Notify::Simple 0.12
     requirements:
       ExtUtils::MakeMaker 6.30
+  HTML-Parser-3.71
+    pathname: G/GA/GAAS/HTML-Parser-3.71.tar.gz
+    provides:
+      HTML::Entities 3.69
+      HTML::Filter 3.57
+      HTML::HeadParser 3.71
+      HTML::LinkExtor 3.69
+      HTML::Parser 3.71
+      HTML::PullParser 3.57
+      HTML::TokeParser 3.69
+    requirements:
+      ExtUtils::MakeMaker 0
+      HTML::Tagset 3
+      XSLoader 0
+      perl 5.008
+  HTML-Tagset-3.20
+    pathname: P/PE/PETDANCE/HTML-Tagset-3.20.tar.gz
+    provides:
+      HTML::Tagset 3.20
+    requirements:
+      ExtUtils::MakeMaker 0
   HTTP-Body-1.22
     pathname: G/GE/GETTY/HTTP-Body-1.22.tar.gz
     provides:
