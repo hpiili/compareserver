@@ -12,42 +12,42 @@ my $tc_dbh;
 
 my $app = sub {
 	my $env = shift;
-		my $q = CGI::PSGI->new($env);
-		my $r = Plack::Request->new($_[0]);
-		my $p = $r->params;
-        if ($env->{REQUEST_METHOD} eq "GET") {
-            my $path = $env->{PATH_INFO};
-			print "path $path\n";
-			# We need to always return 
-			if ($path eq "/compare") {
-				my %FORM = $r->uri->query_form();
-				my $tcengine = $FORM{'tcengine'};
-				my $wdmsengine = $FORM{'wdmsengine'};
-				if (length($tcengine)<1) {
+	my $q = CGI::PSGI->new($env);
+	my $r = Plack::Request->new($_[0]);
+	my $p = $r->params;
+	if ($env->{REQUEST_METHOD} eq "GET") {
+		my $path = $env->{PATH_INFO};
+		print "path $path\n";
+		# We need to always return 
+		if ($path eq "/compare") {
+			my %FORM = $r->uri->query_form();
+			my $tcengine = $FORM{'tcengine'};
+			my $wdmsengine = $FORM{'wdmsengine'};
+			if (length($tcengine)<1) {
+				$res = &send_form();
+				return $res;
+			} else {
+				if (length($wdmsengine)<1) {
 					$res = &send_form();
 					return $res;
 				} else {
-					if (length($wdmsengine)<1) {
-						$res = &send_form();
-						return $res;
-					} else {
-						# there is currently no way of telling user that the oompare is in progress
-						# javascript or http://www.stonehenge.com/merlyn/WebTechniques/col20.html
-						#&compare_ebom($tcengine,$wdmsengine,$c);
-						return [ 
-							$q->psgi_header('text/plain'),
-							[ "Hello ", $q->param('name') ],
-						];
-					}
+					# there is currently no way of telling user that the oompare is in progress
+					# javascript or http://www.stonehenge.com/merlyn/WebTechniques/col20.html
+					#&compare_ebom($tcengine,$wdmsengine,$c);
+					return [ 
+						$q->psgi_header('text/plain'),
+						[ "Hello ", $q->param('name') ],
+					];
 				}
-			} else {
-				$res = &send_form();
-				return $res;
 			}
-       } else { 
+		} else {
 			$res = &send_form();
 			return $res;
 		}
+   } else {
+		$res = &send_form();
+		return $res;
+	}
 }
 
 	
@@ -68,16 +68,15 @@ sub send_form {
 				textfield('wdmsengine','',50,15),
 				submit(-name=>'Submit'),
 				end_form(),
-                end_html(),
+                end_html()
             ] ];
 	return $res;
 }
 
 
 sub compare_ebom {
-	my $tcengine = shift @_;
-	my $wdmsengine = shift @_;
-	my $c = shift @_;
+	my $tcengine = shift;
+	my $wdmsengine = shift;
 	
 	# wdengmod contains only the structure, wdengmoddata contains also attributes
 	my %wdeng; my %wdengmod; my $wdengmod; my %wdengmoddata; my $issue;
