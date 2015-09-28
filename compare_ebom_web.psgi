@@ -48,7 +48,7 @@ my $app = sub {
 		$res = &send_form();
 		return $res;
 	}
-}
+};
 
 	
 
