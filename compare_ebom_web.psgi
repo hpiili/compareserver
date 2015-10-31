@@ -1,10 +1,11 @@
 #/perl
 use DBI;
-#use Data::Dumper;
 use Data::Dumper;
 use Time::HiRes qw ( gettimeofday );
 use CGI::PSGI;
-
+use Plack::Request;
+use Test::More;
+use Test::Differences;
 
 my $debug=0; 
 my $dbh;
