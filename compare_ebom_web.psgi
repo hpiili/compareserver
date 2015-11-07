@@ -493,11 +493,12 @@ sub connectDBWDMS {
 			  'password' => $ENV{'wdmsdbpassword'},
 			  'host.name' => $ENV{'wdmsdbhost'},
 			  'host.port' => $ENV{'wdmsdbport'});
+
 	my $dsn = "DBI:JDBC:hostname=wdmsdbproxy:9001;url=jdbc:oracle:thin:\@$ENV{'wdmsdbhost'}:$ENV{'wdmsdbport'}:$ENV{'wdmsdatabase'}";
 	$dbh = DBI->connect($dsn, undef, undef, 
-			  { PrintError => 0, 
-				RaiseError => 1,
-				jdbc_properties => \%properties })
+			  { PrintError => 1, 
+			    RaiseError => 1,
+			    jdbc_properties => \%properties })
 			  or die "Failed to connect: ($DBI::err) $DBI::errstr\n";
 
 }
