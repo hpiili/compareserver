@@ -1,5 +1,6 @@
 #/perl
 use DBI;
+use DBD::Proxy;
 use Data::Dumper;
 use Time::HiRes qw ( gettimeofday );
 use CGI::PSGI;
@@ -477,7 +478,7 @@ sub  trim { my $s = shift; $s =~ s/^\s+|\s+$//g; return $s };
 sub connectDBTC {
 	# ##################### CONNECTIONS #####################
 	my $tc_dsn;
-	$tc_dsn = "dbi:Proxy:hostname=tcdbproxy:9002;url=jdbc:sqlserver://$ENV{'tcdbhost'}:$ENV{'tcdbport'};databaseName=$ENV{'tcdatabase'}";
+	$tc_dsn = "DBI:Proxy:hostname=tcdbproxy:9002;url=jdbc:sqlserver://$ENV{'tcdbhost'}:$ENV{'tcdbport'};databaseName=$ENV{'tcdatabase'}";
 
 	$tc_dbh = DBI->connect($tc_dsn, $ENV{'tcdbuser'}, $ENV{'tcdbpassword'}, 
 			  { PrintError => 1, 
@@ -488,7 +489,7 @@ sub connectDBTC {
 
 sub connectDBWDMS {
 	# ##################### CONNECTIONS #####################
-	my $dsn = "dbi:Proxy:hostname=wdmsdbproxy:9001;url=jdbc:oracle:thin:\@$ENV{'wdmsdbhost'}:$ENV{'wdmsdbport'}:$ENV{'wdmsdatabase'}";
+	my $dsn = "DBI:Proxy:hostname=wdmsdbproxy:9001;url=jdbc:oracle:thin:\@$ENV{'wdmsdbhost'}:$ENV{'wdmsdbport'}:$ENV{'wdmsdatabase'}";
 	$dbh = DBI->connect($dsn, $ENV{'wdmsdbuser'}, $ENV{'wdmsdbpassword'}, 
 			  { PrintError => 0, 
 				RaiseError => 1, 
