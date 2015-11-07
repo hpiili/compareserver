@@ -183,6 +183,7 @@ sub compare_ebom {
 	if ($runtc) {
 		# find the top item for maxibom
 		my $topitem;
+		print "Find itemid $tcengine from Teamcenter\n";
 		$sth = $tc_dbh->prepare($find_latest_itemrev_by_itemid);
 		$sth->bind_param(1,$tcengine);
 		$sth->execute;
@@ -409,12 +410,20 @@ sub defineTCQueries {
 		};
 	
 	$find_latest_itemrev_by_itemid = q{
-		select I.pitem_id,IR.pitem_revision_id,P.pcreation_date,I.puid,IR.puid,W.pobject_name,W.pobject_type from 
+	select
+		I.pitem_id,
+		IR.pitem_revision_id,
+		P.pcreation_date,
+		I.puid,
+		IR.puid,
+		W.pobject_name,
+		W.pobject_type 
+	from 
 		PITEM I
 		INNER JOIN PITEMREVISION IR on IR.ritems_tagu=I.puid
 		INNER JOIN PWORKSPACEOBJECT W on IR.puid=W.puid
 		INNER JOIN PPOM_APPLICATION_OBJECT P on P.puid=W.puid
-		where 
+	where 
 			I.pitem_id=?
 		};
 
