@@ -14,8 +14,10 @@ my $tc_dbh;
 my $app = sub {
 	my $env = shift;
 	my $q = CGI::PSGI->new($env);
-	my $r = Plack::Request->new($_[0]);
-	my $p = $r->params;
+	$q->autoEscape(undef);
+	$q->charset('UTF-8');
+	my $r = Plack::Request->new($env);
+	my $p = $r->parameters;
 	if ($env->{REQUEST_METHOD} eq "GET") {
 		my $path = $env->{PATH_INFO};
 		print "path $path\n";
@@ -34,15 +36,11 @@ my $app = sub {
 				} else {
 					# there is currently no way of telling user that the oompare is in progress
 					# javascript or http://www.stonehenge.com/merlyn/WebTechniques/col20.html
-					#&compare_ebom($tcengine,$wdmsengine,$c);
-					return [ 
-						$q->psgi_header('text/plain'),
-						[ "Hello ", $q->param('name') ],
-					];
+					&compare_ebom($tcengine,$wdmsengine,$c);
 				}
 			}
 		} else {
-			$res = &send_form();
+			$res = &send_form($q);
 			return $res;
 		}
    } else {
@@ -54,22 +52,28 @@ my $app = sub {
 	
 
 sub send_form {
+	my $cgi = shift;
+	#return [ 
+	#	$q->psgi_header('text/plain'),
+	#	[ "Hello ", $q->param('tcengine') ],
+	#				];
+
 	my $res = 
 	[ 200, [ 'Content-Type' => 'text/html' ], 
 			[ 
-                start_html(
+                $cgi->start_html(
                     -title => HOSTNAME,
                     -encoding => 'utf-8',
                 ),
-                p('Input two engine numbers type to compare'),
-				start_form("GET","compare","multipart/form-data"),
-				p('Teamcenter EBOM Number:'),
-				textfield('tcengine','',50,128),
-				p('WDMS EBOM Number:'),
-				textfield('wdmsengine','',50,15),
-				submit(-name=>'Submit'),
-				end_form(),
-                end_html()
+                $cgi->p('Input two engine numbers type to compare'),
+		$cgi->start_form("GET","compare","multipart/form-data"),
+		$cgi->p('Teamcenter EBOM Number:'),
+		$cgi->textfield('tcengine','',50,128),
+		$cgi->p('WDMS EBOM Number:'),
+		$cgi->textfield('wdmsengine','',50,15),
+		$cgi->submit(-name=>'Submit'),
+		$cgi->end_form(),
+                $cgi->end_html()
             ] ];
 	return $res;
 }
