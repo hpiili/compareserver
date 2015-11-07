@@ -493,11 +493,15 @@ sub connectDBWDMS {
 			  'password' => $ENV{'wdmsdbpassword'},
 			  'host.name' => $ENV{'wdmsdbhost'},
 			  'host.port' => $ENV{'wdmsdbport'});
+	die "Required parameter missing : wdmsdbuser" if length($properties{'user'})<1;
+	die "Required parameter missing : wdmsdbpassword" if length($properties{'password'})<1;
+	die "Required parameter missing : wdmsdbhost" if length($properties{'host.name'})<1;
+	die "Required parameter missing : wdmsdbport" if length($properties{'host.port'})<1;
 
 	my $dsn = "DBI:JDBC:hostname=wdmsdbproxy:9001;url=jdbc:oracle:thin:\@$ENV{'wdmsdbhost'}:$ENV{'wdmsdbport'}:$ENV{'wdmsdatabase'}";
 	$dbh = DBI->connect($dsn, undef, undef, 
-			  { PrintError => 1, 
-			    RaiseError => 1,
+			  { PrintError => 0, 
+			    RaiseError => 0,
 			    jdbc_properties => \%properties })
 			  or die "Failed to connect: ($DBI::err) $DBI::errstr\n";
 
