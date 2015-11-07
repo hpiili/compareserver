@@ -489,11 +489,15 @@ sub connectDBTC {
 
 sub connectDBWDMS {
 	# ##################### CONNECTIONS #####################
+	my %properties = ('user' => $ENV{'wdmsdbuser'},
+			  'password' => $ENV{'wdmsdbpassword'},
+			  'host.name' => $ENV{'wdmsdbhost'},
+			  'host.port' => $ENV{'wdmsdbport'});
 	my $dsn = "DBI:JDBC:hostname=wdmsdbproxy:9001;url=jdbc:oracle:thin:\@$ENV{'wdmsdbhost'}:$ENV{'wdmsdbport'}:$ENV{'wdmsdatabase'}";
-	$dbh = DBI->connect($dsn, $ENV{'wdmsdbuser'}, $ENV{'wdmsdbpassword'}, 
+	$dbh = DBI->connect($dsn, undef, undef, 
 			  { PrintError => 0, 
-				RaiseError => 1, 
-				AutoCommit => 0 })
+				RaiseError => 1,
+				jdbc_properties => \%properties })
 			  or die "Failed to connect: ($DBI::err) $DBI::errstr\n";
 
 }
