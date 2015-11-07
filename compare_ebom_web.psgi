@@ -487,12 +487,25 @@ sub  trim { my $s = shift; $s =~ s/^\s+|\s+$//g; return $s };
 sub connectDBTC {
 	# ##################### CONNECTIONS #####################
 	my $tc_dsn;
+
+	my %properties = ('user' => $ENV{'tcdbuser'},
+			  'password' => $ENV{'tcdbpassword'},
+			  'host.name' => $ENV{'tcdbhost'},
+			  'host.port' => $ENV{'tcdbport'});
+
+	die "Required parameter missing : tcdbhost" if length($ENV{'tcdbhost'})<1;
+	die "Required parameter missing : tcdbport" if length($ENV{'tcdbport'})<1;
+	die "Required parameter missing : tcdatabase" if length($ENV{'tcdatabase'})<1;
+	die "Required parameter missing : tcdbuser" if length($ENV{'tcdbuser'})<1;
+	die "Required parameter missing : tcdbpassword" if length($ENV{'tcdbpassword'})<1;
+
 	$tc_dsn = "DBI:JDBC:hostname=tcdbproxy:9002;url=jdbc:sqlserver://$ENV{'tcdbhost'}:$ENV{'tcdbport'};databaseName=$ENV{'tcdatabase'}";
 
 	$tc_dbh = DBI->connect($tc_dsn, $ENV{'tcdbuser'}, $ENV{'tcdbpassword'}, 
 			  { PrintError => 1, 
 				RaiseError => 1,
-				AutoCommit => 0 })
+				AutoCommit => 0,
+				jdbc_properties => \%properties })
 			  or die "Failed to connect: ($DBI::err) $DBI::errstr\n";
 }
 
