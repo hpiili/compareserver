@@ -498,13 +498,13 @@ sub connectDBTC {
 	die "Required parameter missing : tcdatabase" if length($ENV{'tcdatabase'})<1;
 	die "Required parameter missing : tcdbuser" if length($ENV{'tcdbuser'})<1;
 	die "Required parameter missing : tcdbpassword" if length($ENV{'tcdbpassword'})<1;
+	print "Connecting to database $ENV{'tcdatabase'}\n";
 
 	$tc_dsn = "DBI:JDBC:hostname=tcdbproxy:9002;url=jdbc:sqlserver://$ENV{'tcdbhost'}:$ENV{'tcdbport'};databaseName=$ENV{'tcdatabase'}";
 
-	$tc_dbh = DBI->connect($tc_dsn, $ENV{'tcdbuser'}, $ENV{'tcdbpassword'}, 
-			  { PrintError => 1, 
+	$tc_dbh = DBI->connect($tc_dsn, undef, undef, 
+			  { PrintError => 0, 
 				RaiseError => 1,
-				AutoCommit => 0,
 				jdbc_properties => \%properties })
 			  or die "Failed to connect: ($DBI::err) $DBI::errstr\n";
 }
@@ -515,6 +515,7 @@ sub connectDBWDMS {
 			  'password' => $ENV{'wdmsdbpassword'},
 			  'host.name' => $ENV{'wdmsdbhost'},
 			  'host.port' => $ENV{'wdmsdbport'});
+
 	die "Required parameter missing : wdmsdbuser" if length($properties{'user'})<1;
 	die "Required parameter missing : wdmsdbpassword" if length($properties{'password'})<1;
 	die "Required parameter missing : wdmsdbhost" if length($properties{'host.name'})<1;
@@ -523,7 +524,7 @@ sub connectDBWDMS {
 	my $dsn = "DBI:JDBC:hostname=wdmsdbproxy:9001;url=jdbc:oracle:thin:\@$ENV{'wdmsdbhost'}:$ENV{'wdmsdbport'}:$ENV{'wdmsdatabase'}";
 	$dbh = DBI->connect($dsn, undef, undef, 
 			  { PrintError => 0, 
-			    RaiseError => 0,
+			    RaiseError => 1,
 			    jdbc_properties => \%properties })
 			  or die "Failed to connect: ($DBI::err) $DBI::errstr\n";
 
