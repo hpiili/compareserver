@@ -28,16 +28,17 @@ my $app = sub {
 			my $tcengine = $FORM{'tcengine'};
 			my $wdmsengine = $FORM{'wdmsengine'};
 			if (length($tcengine)<1) {
-				$res = &send_form();
+				$res = &send_form($q);
 				return $res;
 			} else {
 				if (length($wdmsengine)<1) {
-					$res = &send_form();
+					$res = &send_form($q);
 					return $res;
 				} else {
 					# there is currently no way of telling user that the oompare is in progress
 					# javascript or http://www.stonehenge.com/merlyn/WebTechniques/col20.html
-					&compare_ebom($tcengine,$wdmsengine,$c);
+					$res = &compare_ebom($tcengine,$wdmsengine,$c,$q);
+					return $res;
 				}
 			}
 		} else {
@@ -45,7 +46,7 @@ my $app = sub {
 			return $res;
 		}
    } else {
-		$res = &send_form();
+		$res = &send_form($q);
 		return $res;
 	}
 };
@@ -83,7 +84,9 @@ sub send_form {
 sub compare_ebom {
 	my $tcengine = shift;
 	my $wdmsengine = shift;
-	
+	my $c = shift;
+	my $cgi = shift;
+
 	# wdengmod contains only the structure, wdengmoddata contains also attributes
 	my %wdeng; my %wdengmod; my $wdengmod; my %wdengmoddata; my $issue;
 	
@@ -172,7 +175,8 @@ sub compare_ebom {
 		  local $Data::Dumper::Deparse = 1;
 		  local $Data::Dumper::Quotekeys = 0;
 		  local $Data::Dumper::Sortkeys = 1;
-		  warn Dumper($wdconsys);
+		  print "\n\n\nWDMS BOM DUMP\n";
+		  warn Dumper(%wdengmod);
 	}
 
 	&defineTCQueries();
@@ -268,43 +272,38 @@ sub compare_ebom {
 	  local $Data::Dumper::Deparse = 1;
 	  local $Data::Dumper::Quotekeys = 0;
 	  local $Data::Dumper::Sortkeys = 1;
-	  warn Dumper($tcbom);
+	  print "\n\n\n\nTEAMCENTER BOM DUMP\n";
+	  warn Dumper(%tcbom);
 	}
 
 	
-	# compare hashes
-	#use Test::Deep tests=>1;
 
 	use Test::More qw{ no_plan };
-	#is_deeply($tcbom, $wdengmod, 'data structures should be the same');
 	use Test::Differences;	
-	eq_or_diff_data($tcbom, $wdengmod, "Comparing $tcengine (GOT) vs $wdmsengine (EXPECTED)");
-	print "Then output the same to File\n";
 
-	#my $tfile=".\\temp\\ebom_compare_output_".int(rand(1000));
-	my $testoutput = "";
-	my $htmloutput = "";
+	my $tfile="/tmp/ebom_compare_output_".int(rand(1000));
+	Test::More->builder->output ($tfile);
+	Test::More->builder->failure_output ($tfile);
 
-	Test::More->builder->output (\$testoutput);
-	Test::More->builder->failure_output (\$testoutput);
-	eq_or_diff($tcbom, $wdengmod, "Comparing $tcengine (GOT) vs $wdmsengine (EXPECTED)");
+	eq_or_diff(\%tcbom, \%wdengmod, "Comparing $tcengine (GOT) vs $wdmsengine (EXPECTED)");
 
-	#open(I,"<$tfile");
-	#open(O,">.\\temp\\ebom_diff_TC_".$tcengine."_WDMS_".$wdmsengine.".htm");
 
-	$htmloutput.= "<html>";
-	$htmloutput.= q{
+	open(I,"<$tfile");
+	my $ofile="/tmp/ebom_diff_TC_".$tcengine."_WDMS_".$wdmsengine.".htm";
+	open(O,">",$ofile);
+
+	print O q{
 	<style>
 	table#t01 tr:nth-child(even) \{
-		background-color: #eee;
+	    background-color: #eee;
 	\}
 	table#t01 th \{
-		color: white;
-		background-color: black;
+	    color: white;
+	    background-color: black;
 	\}
 	</style>
 	};
-	$htmloutput.= "<table id=\"t01\">\n";
+	print O "<table id=\"t01\">\n";
 	while (<I>) {
 		$_=~s/# \+/<td><td>/g;
 		$_=~s/-\+-/-<\/td><td>-/g;
@@ -321,32 +320,44 @@ sub compare_ebom {
 		$_=~s/  /&nbsp;&nbsp;/g;
 		$_=~s/----//g;
 		$_=~s/---//g;
+		$_=~s/--//g;
 		$_=~s/'//g;
 		$_=~s/ => 1,//g;
 		$_=~s/ => 1//g;
 		$_=~s/Failed test//g;
-		$_=~s/at compare_ebom.pl line (\d*)//g;
-		$htmloutput.= $_;
+		$_=~s/at \/root\/compareserver\/compare_ebom_web.psgi line (\d*)//g;
+		print O $_;
 	}
-	$htmloutput.= "</table></html>\n";
-	#close(O);
-	#close(I);
-
+	print O "</table>\n";
+	close(O);
+	close(I);
 	
-	_http_response($c, { content_type => 'text/html' },
-                start_html(
+	open (O,"<",$ofile);
+	while (<O>) {
+		$htmloutput.=$_;
+	}
+	close(O);	
+        unlink($ofile);
+	#unlink($tfile);
+	print "Original diff file : $tfile\n";
+
+	my $res =
+        	[ 200, [ 'Content-Type' => 'text/html' ],
+                        [
+                $cgi->start_html(
                     -title => HOSTNAME,
                     -encoding => 'utf-8',
                 ),
-                p($htmloutput),
-                end_html(),
-            );
+                $cgi->p($htmloutput),
+                $cgi->end_html()
+            ] ];
 
 	
 	END {
 		$dbh->disconnect if defined($dbh);
 		$tc_dbh->disconnect if defined($tc_dbh);
 	}
+	return $res;
 
 }
 
@@ -361,8 +372,7 @@ sub defineWDMSQueries {
 
 sub defineTCQueries {
 	# ##################### List Items created after Date #####################
-	$find_latest_itemrev_by_creationdate = q{
-		select I.pitem_id,IR.pitem_revision_id, P.pcreation_date, I.puid, IR.puid from 
+	$find_latest_itemrev_by_creationdate = q{use QADC; select I.pitem_id,IR.pitem_revision_id, P.pcreation_date, I.puid, IR.puid from 
 		PITEM I
 		INNER JOIN PITEMREVISION IR on IR.ritems_tagu=I.puid
 		INNER JOIN PWORKSPACEOBJECT W on IR.puid=W.puid
@@ -377,8 +387,7 @@ sub defineTCQueries {
 			AND P.pcreation_date > ? AND P.pcreation_date < dateadd(day, 2, ?)
 		};
 	
-	$find_latest_itemrev_by_objectname = q{
-		select I.pitem_id,IR.pitem_revision_id, P.pcreation_date, I.puid, IR.puid from 
+	$find_latest_itemrev_by_objectname = q{use QADC; select I.pitem_id,IR.pitem_revision_id, P.pcreation_date, I.puid, IR.puid from 
 		PITEM I
 		INNER JOIN PITEMREVISION IR on IR.ritems_tagu=I.puid
 		INNER JOIN PWORKSPACEOBJECT W on IR.puid=W.puid
@@ -392,8 +401,7 @@ sub defineTCQueries {
 			)
 		};
 
-	$find_latest_itemrev_by_creationdate_and_desc = q{
-		select I.pitem_id,IR.pitem_revision_id, P.pcreation_date, I.puid, IR.puid from 
+	$find_latest_itemrev_by_creationdate_and_desc = q{use QADC; select I.pitem_id,IR.pitem_revision_id, P.pcreation_date, I.puid, IR.puid from 
 		PITEM I
 		INNER JOIN PITEMREVISION IR on IR.ritems_tagu=I.puid
 		INNER JOIN PWORKSPACEOBJECT W on IR.puid=W.puid
@@ -409,23 +417,9 @@ sub defineTCQueries {
 			AND upper(W.pobject_desc)=upper(?)
 		};
 	
-	$find_latest_itemrev_by_itemid = q{
-	select
-		I.pitem_id,
-		IR.pitem_revision_id,
-		P.pcreation_date,
-		I.puid,
-		IR.puid,
-		W.pobject_name,
-		W.pobject_type 
-	from 
-		PITEM I
-		INNER JOIN PITEMREVISION IR on IR.ritems_tagu=I.puid
-		INNER JOIN PWORKSPACEOBJECT W on IR.puid=W.puid
-		INNER JOIN PPOM_APPLICATION_OBJECT P on P.puid=W.puid
-	where 
-			I.pitem_id=?
-		};
+	$find_latest_itemrev_by_itemid = q{use QADC; select
+		I.pitem_id, IR.pitem_revision_id, P.pcreation_date, I.puid, IR.puid, W.pobject_name, W.pobject_type 
+from PITEM I INNER JOIN PITEMREVISION IR on IR.ritems_tagu=I.puid INNER JOIN PWORKSPACEOBJECT W on IR.puid=W.puid INNER JOIN PPOM_APPLICATION_OBJECT P on P.puid=W.puid where I.pitem_id=?};
 
 	$find_itemrev_by_name_and_desc = q{
 		select I.pitem_id,IR.pitem_revision_id, P.pcreation_date,I.puid, IR.puid from 
@@ -439,8 +433,7 @@ sub defineTCQueries {
 		};
 	
 	# note that EBOM structure is precise structure (the sql is not the same as in wdconsys migration
-	$find_item_level1_bom = q{
-		select 
+	$find_item_level1_bom = q{use QADC; select 
 			CI.pitem_id as ITEMID,CI.puid as PUID,WSO_CI.pobject_name as NAME,t1.pval_0 as SYSCODE,t2.pval_0 as VARIANT
 		from 
 		-- Top Material info
@@ -505,6 +498,7 @@ sub connectDBTC {
 	$tc_dbh = DBI->connect($tc_dsn, undef, undef, 
 			  { PrintError => 0, 
 				RaiseError => 1,
+				AutoCommit => 0,
 				jdbc_properties => \%properties })
 			  or die "Failed to connect: ($DBI::err) $DBI::errstr\n";
 }
