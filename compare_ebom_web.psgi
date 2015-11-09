@@ -294,9 +294,6 @@ sub compare_ebom {
 
 	print O q{
 	<style>
-	table#t01 tr:nth-child(even) \{
-	    background-color: #eee;
-	\}
 	table#t01 th \{
 	    color: white;
 	    background-color: black;
@@ -325,7 +322,8 @@ sub compare_ebom {
 		$_=~s/ => 1,//g;
 		$_=~s/ => 1//g;
 		$_=~s/Failed test//g;
-		$_=~s/at \/root\/compareserver\/compare_ebom_web.psgi line (\d*)//g;
+		$_=~s/at \/root\/compareserver\/compare_ebom_web.psgi line (\d*)\.//g;
+		$_=~s/\{//g;
 		print O $_;
 	}
 	print O "</table>\n";
