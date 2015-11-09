@@ -21,7 +21,7 @@ my $app = sub {
 	my $p = $r->parameters;
 	if ($env->{REQUEST_METHOD} eq "GET") {
 		my $path = $env->{PATH_INFO};
-		print "path $path\n";
+		#print "path $path\n";
 		# We need to always return 
 		if ($path eq "/compare") {
 			my %FORM = $r->uri->query_form();
@@ -64,7 +64,7 @@ sub send_form {
 	[ 200, [ 'Content-Type' => 'text/html' ], 
 			[ 
                 $cgi->start_html(
-                    -title => HOSTNAME,
+                    -title => "Teamcenter-WDMS Engine EBOM Compare",
                     -encoding => 'utf-8',
                 ),
                 $cgi->p('Input two engine numbers type to compare'),
@@ -236,7 +236,7 @@ sub compare_ebom {
 				print "\t$itemkey\n" if ($debug);
 					
 				if (($h2{SYSCODE} ne $syscodeshort) && (length($h2{SYSCODE})>1)) {
-					print "BOMLine Note :$h2{SYSCODE} vs short :$syscodeshort --> use special codes\n";
+					print "BOMLine Note :$h2{SYSCODE} vs short :$syscodeshort --> use special codes\n" if $debug;
 					my ($syscode_t,$counter) = split(";", $h2{SYSCODE});
 					if ($syscode_t eq $syscodeshort) {
 						$itemid=$itemid.";".$counter;
@@ -336,14 +336,14 @@ sub compare_ebom {
 	}
 	close(O);	
         unlink($ofile);
-	#unlink($tfile);
-	print "Original diff file : $tfile\n";
+	unlink($tfile);
+	#print "Original diff file : $tfile\n";
 
 	my $res =
         	[ 200, [ 'Content-Type' => 'text/html' ],
                         [
                 $cgi->start_html(
-                    -title => HOSTNAME,
+                    -title => "Teamcenter-WDMS Engine EBOM Compare",
                     -encoding => 'utf-8',
                 ),
                 $cgi->p($htmloutput),
@@ -370,7 +370,7 @@ sub defineWDMSQueries {
 
 sub defineTCQueries {
 	# ##################### List Items created after Date #####################
-	$find_latest_itemrev_by_creationdate = q{use QADC; select I.pitem_id,IR.pitem_revision_id, P.pcreation_date, I.puid, IR.puid from 
+	$find_latest_itemrev_by_creationdate = "use $ENV{'tcdatabase'}\;".q{select I.pitem_id,IR.pitem_revision_id, P.pcreation_date, I.puid, IR.puid from 
 		PITEM I
 		INNER JOIN PITEMREVISION IR on IR.ritems_tagu=I.puid
 		INNER JOIN PWORKSPACEOBJECT W on IR.puid=W.puid
@@ -385,7 +385,7 @@ sub defineTCQueries {
 			AND P.pcreation_date > ? AND P.pcreation_date < dateadd(day, 2, ?)
 		};
 	
-	$find_latest_itemrev_by_objectname = q{use QADC; select I.pitem_id,IR.pitem_revision_id, P.pcreation_date, I.puid, IR.puid from 
+	$find_latest_itemrev_by_objectname = "use $ENV{'tcdatabase'}\;".q{select I.pitem_id,IR.pitem_revision_id, P.pcreation_date, I.puid, IR.puid from 
 		PITEM I
 		INNER JOIN PITEMREVISION IR on IR.ritems_tagu=I.puid
 		INNER JOIN PWORKSPACEOBJECT W on IR.puid=W.puid
@@ -399,7 +399,7 @@ sub defineTCQueries {
 			)
 		};
 
-	$find_latest_itemrev_by_creationdate_and_desc = q{use QADC; select I.pitem_id,IR.pitem_revision_id, P.pcreation_date, I.puid, IR.puid from 
+	$find_latest_itemrev_by_creationdate_and_desc = "use $ENV{'tcdatabase'}\;".q{select I.pitem_id,IR.pitem_revision_id, P.pcreation_date, I.puid, IR.puid from 
 		PITEM I
 		INNER JOIN PITEMREVISION IR on IR.ritems_tagu=I.puid
 		INNER JOIN PWORKSPACEOBJECT W on IR.puid=W.puid
@@ -415,7 +415,7 @@ sub defineTCQueries {
 			AND upper(W.pobject_desc)=upper(?)
 		};
 	
-	$find_latest_itemrev_by_itemid = q{use QADC; select
+	$find_latest_itemrev_by_itemid = "use $ENV{'tcdatabase'}\;".q{select
 		I.pitem_id, IR.pitem_revision_id, P.pcreation_date, I.puid, IR.puid, W.pobject_name, W.pobject_type 
 from PITEM I INNER JOIN PITEMREVISION IR on IR.ritems_tagu=I.puid INNER JOIN PWORKSPACEOBJECT W on IR.puid=W.puid INNER JOIN PPOM_APPLICATION_OBJECT P on P.puid=W.puid where I.pitem_id=?};
 
@@ -431,7 +431,7 @@ from PITEM I INNER JOIN PITEMREVISION IR on IR.ritems_tagu=I.puid INNER JOIN PWO
 		};
 	
 	# note that EBOM structure is precise structure (the sql is not the same as in wdconsys migration
-	$find_item_level1_bom = q{use QADC; select 
+	$find_item_level1_bom = "use $ENV{'tcdatabase'}\;".q{select 
 			CI.pitem_id as ITEMID,CI.puid as PUID,WSO_CI.pobject_name as NAME,t1.pval_0 as SYSCODE,t2.pval_0 as VARIANT
 		from 
 		-- Top Material info
