@@ -25,28 +25,29 @@ my $app = sub {
 		# We need to always return 
 		if ($path eq "/compare") {
 			my %FORM = $r->uri->query_form();
-			my $tcengine = $FORM{'tcengine'};
-			my $wdmsengine = $FORM{'wdmsengine'};
+			my $tcengine = &trim($FORM{'tcengine'});
+			my $wdmsengine = &trim($FORM{'wdmsengine'});
+			print "TCENGINE:$tcengine\tWDMS Engine:$wdmsengine\n";
 			if (length($tcengine)<1) {
-				$res = &send_form($q);
+				my $res = &send_form($q);
 				return $res;
 			} else {
 				if (length($wdmsengine)<1) {
-					$res = &send_form($q);
+					my $res = &send_form($q);
 					return $res;
 				} else {
 					# there is currently no way of telling user that the oompare is in progress
 					# javascript or http://www.stonehenge.com/merlyn/WebTechniques/col20.html
-					$res = &compare_ebom($tcengine,$wdmsengine,$c,$q);
+					my $res = &compare_ebom($tcengine,$wdmsengine,$c,$q);
 					return $res;
 				}
 			}
 		} else {
-			$res = &send_form($q);
+			my $res = &send_form($q);
 			return $res;
 		}
    } else {
-		$res = &send_form($q);
+		my $res = &send_form($q);
 		return $res;
 	}
 };
@@ -69,9 +70,9 @@ sub send_form {
                 ),
                 $cgi->p('Input two engine numbers type to compare'),
 		$cgi->start_form("GET","compare","multipart/form-data"),
-		$cgi->p('Teamcenter EBOM Number:'),
+		$cgi->p('Teamcenter Engine EBOM Number:'),
 		$cgi->textfield('tcengine','',50,128),
-		$cgi->p('WDMS EBOM Number:'),
+		$cgi->p('WDMS Engine Number:'),
 		$cgi->textfield('wdmsengine','',50,15),
 		$cgi->submit(-name=>'Submit'),
 		$cgi->end_form(),
@@ -102,11 +103,12 @@ sub compare_ebom {
 
 	# wdconsys contains only the structure, wdconsysdata contains also attributes
 	my %wdconsys; my $wdconsys; my %wdconsysdata;
+	foreach $k (keys %wdengmod) { delete $wdengmod{$k}; }
 	# for debug purposes, we can skip wdms queries
 	if ($runwdms) {
 		
 		&defineWDMSQueries();
-		
+		print "Extract WDMS BOM $wdmsengine";		
 		# Find first the latest issue of the Engine number
 		# select max(ISSUE) from WDENG where ENGNR = 'PAAE267940TC'
 		$sth = $dbh->prepare($wdengmaxissuequery);
@@ -116,8 +118,10 @@ sub compare_ebom {
 			chomp(@row);
 			$issue = $row[0];
 		}
+		$sth->finish;
 		
 		# query everything from WDENGMOD where ENGNR=$wdmsengine and ISSUE=max()
+		print " ISSUE $issue\n";
 		$sth = $dbh->prepare($wdengmodquery);
 		$sth->bind_param(1,$wdmsengine);
 		$sth->bind_param(2,$issue);
@@ -157,14 +161,12 @@ sub compare_ebom {
 			$wdengmoddata{$syscodeshort}{$itemkey}=\%h;
 			$wdengmod{$syscodeshort}{$itemkey}=1;
 		}
-
+		$sth->finish;
 		$wdengmod{'00_ENGNR'}=$wdmsengine;
-		#store \%wdengmod, ".\\temp\\wdeng_$wdmsengine.hash";
-		#$wdengmod=\%wdengmod;
 		
 		
 	} else {
-		#$wdconsys = retrieve(".\\temp\\wdconsys_$enginetype.hash");
+		#$wdconsys = retrieve("/tmp/wdconsys_$enginetype.hash");
 	}
 
 	# Dump the contents
@@ -183,7 +185,7 @@ sub compare_ebom {
 
 	# tcbom only contains the structure, tcbomdata also contains the attributes
 	my %tcbom; my $tcbom; my %tcbomdata;
-
+	foreach $k (keys %tcbom) { delete $tcbom{$k}; }
 	if ($runtc) {
 		# find the top item for maxibom
 		my $topitem;
@@ -201,7 +203,7 @@ sub compare_ebom {
 			$topitem=$h{PITEM_ID};
 		}
 		die "The top level item $tcengine was not found in Teamcenter $tcenv\n" if not defined($topitem);
-		
+		$sth->finish;		
 		$start = Time::HiRes::time();
 		# find first level bom - systemcodes
 		$sth = $tc_dbh->prepare($find_item_level1_bom);
@@ -254,7 +256,9 @@ sub compare_ebom {
 				$tcbom{$syscodeshort}{$itemkey}=1;
 					
 			}
+			$sth2->finish;
 		}
+		$sth->finish;
 		print "(" . (Time::HiRes::time() - $start) . " seconds)\n";
 
 		$tcbom{'00_ENGNR'}=$tcengine;
@@ -330,6 +334,7 @@ sub compare_ebom {
 	close(O);
 	close(I);
 	
+	my $htmloutput;
 	open (O,"<",$ofile);
 	while (<O>) {
 		$htmloutput.=$_;
@@ -566,3 +571,7 @@ sub sort_dumper {
     $array[-1] =~ s/,\n$/\n/;
   return join'', $start, @array, $close;
 }
+
+sub ltrim { my $s = shift; $s =~ s/^\s+|^\///;       return $s };
+sub rtrim { my $s = shift; $s =~ s/\s+$//;       return $s };
+sub  trim { my $s = shift; $s =~ s/^\s+|\s+$//g; return $s };
