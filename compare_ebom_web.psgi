@@ -38,7 +38,7 @@ my $app = sub {
 				} else {
 					# there is currently no way of telling user that the oompare is in progress
 					# javascript or http://www.stonehenge.com/merlyn/WebTechniques/col20.html
-					my $res = &compare_ebom($tcengine,$wdmsengine,$c,$q);
+					my $res = &compare_ebom(uc($tcengine),uc($wdmsengine),$c,$q);
 					return $res;
 				}
 			}
@@ -139,27 +139,14 @@ sub compare_ebom {
 			$syscodeshort=substr($syscode,0,3);
 			
 			$itemid=$h{MODITEMID}; $modissue = $h{MODISSUE};
-			$itemkey=$subcode."_".$itemid;
+			$itemkey=$subcode."_".$itemid."_".$syscode;
 			
 			
 			# if there is already existing record with same itemid but with different spec1, spec2,spec3, spec4 and 5
 			# create a distinct record in hash
-			if (defined $wdengmoddata{$syscodeshort}{$itemkey}) {
-				$subcode_o=$wdengmoddata{$syscodeshort}{$itemkey}{SUBCODE};
-				$systemcode_o=$wdengmoddata{$syscodeshort}{$itemkey}{SYSTEMCODE};
-				$modissue_o=$wdengmoddata{$syscodeshort}{$itemkey}{MODISSUE};
-				if (($subcode_o ne $subcode) || ($systemcode_o ne $systemcode) || ($modissue_o ne $modissue)) {
-					$itemidnew=$itemidnew.";1";
-					$itemkey=$itemidnew."_".$subcode;
-				}
-			}
 			
-			if ((defined $itemidnew) && ($itemid ne $itemidnew)) { $itemid=$itemidnew; }
-			#if (($h4{SYSCODE} ne $syscodeshort) && (length($h4{SYSCODE})>1)) {
-			#					$itemid=$itemid.";".$h4{SYSCODE};
-			#				}
 			$wdengmoddata{$syscodeshort}{$itemkey}=\%h;
-			$wdengmod{$syscodeshort}{$itemkey}=1;
+			$wdengmod{$syscodeshort}{$itemkey}=$h{AMOUNT};
 		}
 		$sth->finish;
 		$wdengmod{'00_ENGNR'}=$wdmsengine;
@@ -201,13 +188,15 @@ sub compare_ebom {
 				$h{$fields[$i]}=$value;
 			}
 			$topitem=$h{PITEM_ID};
+			$toprev=$h{PITEM_REVISION_ID};
 		}
 		die "The top level item $tcengine was not found in Teamcenter $tcenv\n" if not defined($topitem);
 		$sth->finish;		
 		$start = Time::HiRes::time();
 		# find first level bom - systemcodes
-		$sth = $tc_dbh->prepare($find_item_level1_bom);
+		$sth = $tc_dbh->prepare($find_item_level1_bom_precise1);
 		$sth->bind_param(1,$tcengine);
+		$sth->bind_param(2,$toprev);
 		$sth->execute;
 		my @fields = @{ $sth->{NAME_uc} };
 		while ( my @row = $sth->fetchrow_array() ) {
@@ -220,8 +209,9 @@ sub compare_ebom {
 			print "$syscodeshort\n" if ($debug);
 			#next if ($syscodeshort ne "1.0");
 			# then find the modules below systemcode
-			$sth2 = $tc_dbh->prepare($find_item_level1_bom);
+			$sth2 = $tc_dbh->prepare($find_item_level1_bom_precise1);
 			$sth2->bind_param(1,$h{ITEMID});
+			$sth2->bind_param(2,$h{REV});
 			$sth2->execute;
 			my @fields2 = @{ $sth2->{NAME_uc} }; my $variant;
 			while ( my @row2 = $sth2->fetchrow_array() ) {
@@ -232,28 +222,23 @@ sub compare_ebom {
 				}
 				$itemid=$h2{ITEMID};
 				$variant=$h2{VARIANT};
+				$syscode=$h2{SYSCODE};
 				($variant,$rest) = split("/",$variant);
-				$itemkey=$variant."_".$itemid;
+				$itemkey=$variant."_".$itemid."_".$syscode;
 				
 				print "\t$itemkey\n" if ($debug);
 					
-				if (($h2{SYSCODE} ne $syscodeshort) && (length($h2{SYSCODE})>1)) {
-					print "BOMLine Note :$h2{SYSCODE} vs short :$syscodeshort --> use special codes\n" if $debug;
-					my ($syscode_t,$counter) = split(";", $h2{SYSCODE});
-					if ($syscode_t eq $syscodeshort) {
-						$itemid=$itemid.";".$counter;
-					} else {
-						$itemid=$itemid.";".$h2{SYSCODE};
-					}
-				}
-				#}
 				print "\t\t\t$itemid\n" if ($debug);
 						# ask wdengmod attributes for $itemid
 				$tcbomdata{$syscodeshort}{$itemkey}{ITEMID}=$h2{ITEMID};
 				$tcbomdata{$syscodeshort}{$itemkey}{PUID}=$h2{PUID};
+				$tcbomdata{$syscodeshort}{$itemkey}{REV}=$h2{REV};
 				$tcbomdata{$syscodeshort}{$itemkey}{NAME}=$h2{NAME};
-				$tcbomdata{$syscodeshort}{$itemkey}{VARIANTPUID}=$h2{PUID};
-				$tcbom{$syscodeshort}{$itemkey}=1;
+				$tcbomdata{$syscodeshort}{$itemkey}{AMOUNT}=$h2{AMOUNT};
+				$tcbomdata{$syscodeshort}{$itemkey}{SYSCODE}=$h2{SYSCODE};
+				$tcbomdata{$syscodeshort}{$itemkey}{VARIANT}=$h2{VARIANT};
+				$tcbomdata{$syscodeshort}{$itemkey}{OCCPUID}=$h2{OCCPUID};
+				$tcbom{$syscodeshort}{$itemkey}=$h2{AMOUNT};
 					
 			}
 			$sth2->finish;
@@ -436,7 +421,60 @@ from PITEM I INNER JOIN PITEMREVISION IR on IR.ritems_tagu=I.puid INNER JOIN PWO
 		};
 	
 	# note that EBOM structure is precise structure (the sql is not the same as in wdconsys migration
-	$find_item_level1_bom = "use $ENV{'tcdatabase'}\;".q{select 
+
+	$find_item_level1_bom_precise1 = "use $ENV{'tcdatabase'}\;".q{
+		 SELECT 
+		   CI.pitem_id AS ITEMID,
+		   CI.puid as PUID,
+		   CIR.pitem_revision_id as REV,
+		   WSO_CI.pobject_name AS NAME,
+		   AMOUNT = CASE WHEN y.pqty_value='-1' THEN '1' ELSE REPLACE(y.pqty_value, ',','.') END,
+			t1.pval_0 as SYSCODE,
+			t2.pval_0 as VARIANT,
+			y.puid as OCCPUID
+
+		FROM
+
+		-- Top Solution Item info
+		PITEM PI WITH (NOLOCK)
+		JOIN PITEMREVISION PIR WITH (NOLOCK) on PI.puid=PIR.ritems_tagu
+		JOIN PWORKSPACEOBJECT WSO_PI WITH (NOLOCK) on WSO_PI.puid=PI.puid
+
+		-- BOM info
+		JOIN PSTRUCTURE_REVISIONS WITH (NOLOCK) ON PIR.puid = PSTRUCTURE_REVISIONS.puid
+		JOIN PPSBOMVIEWREVISION WITH (NOLOCK) ON PPSBOMVIEWREVISION.puid = PSTRUCTURE_REVISIONS.pvalu_0 AND PPSBOMVIEWREVISION.pis_precise = '1'
+		JOIN PPSOCCURRENCE y WITH (NOLOCK) ON PPSBOMVIEWREVISION.puid = y.rparent_bvru
+		JOIN PPSBOMVIEW WITH (NOLOCK) ON PPSBOMVIEW.puid=PPSBOMVIEWREVISION.rbom_viewu
+		--JOIN PPSVIEWTYPE WITH (NOLOCK) ON PPSBOMVIEW.rview_typeu=PPSVIEWTYPE.puid AND UPPER(PPSVIEWTYPE.pname)=UPPER('VIEW')
+		JOIN PPSVIEWTYPE WITH (NOLOCK) ON PPSBOMVIEW.rview_typeu=PPSVIEWTYPE.puid AND UPPER(PPSVIEWTYPE.pname)='VIEW'
+		LEFT OUTER JOIN PMEAPPEARANCEPATHNODE WITH (NOLOCK) ON y.rocc_threadu=PMEAPPEARANCEPATHNODE.rocc_threadu
+		LEFT OUTER JOIN PABSOCCDATAQUALIFIER aodq WITH (NOLOCK) ON aodq.rqualifier_bvru = PPSBOMVIEWREVISION.puid
+		LEFT OUTER JOIN PABSOCCDATA aodata WITH (NOLOCK) ON aodata.rabs_occu = PMEAPPEARANCEPATHNODE.rabs_occu AND aodata.rdata_qualifieru=aodq.puid
+
+		-- Child info
+		JOIN PITEMREVISION CIR WITH (NOLOCK) ON CIR.puid = y.rchild_itemu
+		JOIN PITEM CI WITH (NOLOCK) ON CI.puid = CIR.ritems_tagu
+		JOIN PWORKSPACEOBJECT WSO_CI WITH (NOLOCK) ON CI.puid=WSO_CI.puid
+		--JOIN PPOM_APPLICATION_OBJECT CIR_PAO WITH (NOLOCK) ON CIR_PAO.puid=CIR.puid
+
+				-- BOMLine notes
+				LEFT OUTER JOIN PNOTE_TYPES nt1 WITH (NOLOCK) ON nt1.puid = y.rnotes_refu AND nt1.pvalu_0=(
+					 select x.puid from PNOTETYPE x WITH (NOLOCK) where x.pname = 'Wb8_EBOMSystemCode'
+				  )
+				LEFT OUTER JOIN PNOTE_TEXTS t1 WITH (NOLOCK) ON t1.puid = y.rnotes_refu AND nt1.pseq = t1.pseq
+				LEFT OUTER JOIN PNOTE_TYPES nt2 WITH (NOLOCK) ON nt2.puid = y.rnotes_refu AND nt2.pvalu_0=(
+					 select x2.puid from PNOTETYPE x2 WITH (NOLOCK) where x2.pname = 'Configuration Remark'
+				  )
+				LEFT OUTER JOIN PNOTE_TEXTS t2 WITH (NOLOCK) ON t2.puid = y.rnotes_refu AND nt2.pseq = t2.pseq
+
+		WHERE
+		  PI.pitem_id=?
+		  AND PIR.pitem_revision_id=?
+		  AND ( aodata.pflagvalue IS NULL OR aodata.pflagvalue=0 )
+	};
+	
+	$find_item_level1_bom = "use $ENV{'tcdatabase'}\;".q{
+		select 
 			CI.pitem_id as ITEMID,CI.puid as PUID,WSO_CI.pobject_name as NAME,t1.pval_0 as SYSCODE,t2.pval_0 as VARIANT
 		from 
 		-- Top Material info
